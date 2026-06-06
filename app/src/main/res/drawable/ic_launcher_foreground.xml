@@ -4,32 +4,42 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Bluetooth symbol -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,20 L54,88 L70,72 L58,60 L70,48 L54,32 Z
-                          M54,32 L38,48 L50,60 L38,72 L54,88"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
-        android:fillType="evenOdd"/>
+
+    <!-- Vertical bar -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M54,20 L70,36 L46,60 L70,84 L54,100"/>
+        android:pathData="M54,22 L54,86"/>
+
+    <!-- Upper-right arrow: top → upper-right peak → center -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M54,20 L54,100"/>
+        android:strokeLineJoin="round"
+        android:pathData="M54,22 L74,38 L54,54"/>
+
+    <!-- Lower-right arrow: center → lower-right peak → bottom -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M38,36 L70,60"/>
+        android:strokeLineJoin="round"
+        android:pathData="M54,54 L74,70 L54,86"/>
+
+    <!-- Upper-left cross line: top → upper-left -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M38,84 L70,60"/>
+        android:pathData="M54,22 L34,38"/>
+
+    <!-- Lower-left cross line: bottom → lower-left -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M54,86 L34,70"/>
+
 </vector>

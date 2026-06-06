@@ -4,15 +4,63 @@
     android:height="180dp"
     android:viewportWidth="320"
     android:viewportHeight="180">
-    <!-- Blue background -->
+
+    <!-- Background -->
     <path
         android:fillColor="#1565C0"
         android:pathData="M0,0h320v180h-320z"/>
-    <!-- Bluetooth symbol centered -->
+
+    <!-- BT symbol — left side, vertically centered -->
+
+    <!-- Vertical bar -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="6"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M80,45 L80,135"/>
+
+    <!-- Upper-right arrow -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M160,50 L160,130 M160,50 L185,72 L148,90 L185,108 L160,130 M160,50 L135,72 M160,130 L135,108"/>
+        android:pathData="M80,45 L110,67 L80,90"/>
+
+    <!-- Lower-right arrow -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M80,90 L110,113 L80,135"/>
+
+    <!-- Upper-left cross -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M80,45 L50,67"/>
+
+    <!-- Lower-left cross -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M80,135 L50,113"/>
+
+    <!-- "BT Manager" text as simple bold lines (right of symbol) -->
+    <!-- B -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M145,55 L145,125"/>
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M145,55 L163,55 Q175,55 175,67 Q175,79 163,79 L145,79"/>
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M145,79 L165,79 Q178,79 178,92 Q178,105 165,105 L145,105"/>
+    <!-- T -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M188,55 L218,55"/>
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M203,55 L203,105"/>
+
 </vector>
