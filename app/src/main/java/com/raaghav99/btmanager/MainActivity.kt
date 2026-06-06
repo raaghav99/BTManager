@@ -69,8 +69,9 @@ class MainActivity : AppCompatActivity() {
                     else
                         @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     val variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1)
+                    // Try auto-confirm; if it fails (no BLUETOOTH_PRIVILEGED), let system show dialog
+                    // Do NOT abort broadcast — system must receive it to show pairing dialog
                     device?.let { autoConfirmPairing(it, variant) }
-                    abortBroadcast()
                 }
 
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {

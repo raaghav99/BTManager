@@ -11,7 +11,12 @@ class BtPairingAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
         val cls = event.className?.toString() ?: return
 
-        if (pkg == "com.android.tv.settings" && cls.contains("BluetoothPairingDialog", ignoreCase = true)) {
+        val isPairingDialog = cls.contains("BluetoothPairing", ignoreCase = true) ||
+            cls.contains("PairingDialog", ignoreCase = true) ||
+            (pkg.contains("bluetooth", ignoreCase = true) && cls.contains("dialog", ignoreCase = true)) ||
+            (pkg == "com.android.tv.settings" && cls.contains("dialog", ignoreCase = true))
+
+        if (isPairingDialog) {
             val root = rootInActiveWindow ?: return
             clickConfirm(root)
         }

@@ -20,13 +20,20 @@ class PairingReceiver : BroadcastReceiver() {
         device?.let {
             try {
                 when (variant) {
-                    2, 3 -> it.javaClass.getMethod("setPairingConfirmation", Boolean::class.java)
-                        .apply { isAccessible = true }.invoke(it, true)
-                    0 -> it.javaClass.getMethod("setPin", ByteArray::class.java)
-                        .apply { isAccessible = true }.invoke(it, "0000".toByteArray())
+                    2, 3 -> {
+                        it.javaClass.getMethod("setPairingConfirmation", Boolean::class.java)
+                            .apply { isAccessible = true }.invoke(it, true)
+                        abortBroadcast() // only abort if confirmation actually succeeded
+                    }
+                    0 -> {
+                        it.javaClass.getMethod("setPin", ByteArray::class.java)
+                            .apply { isAccessible = true }.invoke(it, "0000".toByteArray())
+                        abortBroadcast()
+                    }
                 }
-                abortBroadcast()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // setPairingConfirmation failed (no BLUETOOTH_PRIVILEGED) — let system show dialog
+            }
         }
     }
 }
