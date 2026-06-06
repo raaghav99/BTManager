@@ -123,16 +123,18 @@ class MainActivity : AppCompatActivity() {
         }
         registerReceiver(btReceiver, filter)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val perms = arrayOf(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN
-            )
-            val missing = perms.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-            if (missing.isNotEmpty()) {
-                requestPermissions(missing.toTypedArray(), 1)
-                return
+        val perms = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+                add(Manifest.permission.BLUETOOTH_SCAN)
             }
+            // Required for BT discovery on Android 6–11
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        val missing = perms.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) {
+            requestPermissions(missing.toTypedArray(), 1)
+            return
         }
 
         setup()

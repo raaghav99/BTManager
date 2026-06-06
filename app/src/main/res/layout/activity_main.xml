@@ -51,10 +51,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Scan for New Devices"
-            android:backgroundTint="#1a4a8a"
+            android:background="@drawable/scan_btn_bg"
             android:textColor="#ffffff"
+            android:textSize="18sp"
+            android:paddingHorizontal="32dp"
+            android:paddingVertical="14dp"
             android:layout_marginBottom="16dp"
-            android:focusable="true"/>
+            android:focusable="true"
+            android:stateListAnimator="@null"/>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/discoveredList"
