@@ -4,6 +4,10 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -18,11 +22,33 @@ import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
 
-    private val adapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val btAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private var a2dpProxy: BluetoothProfile? = null
+    private var isConnecting = false
+
+    private val btReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
+            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+            when (state) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    toast("Connected: ${device?.name}")
+                    isConnecting = false
+                    releaseProxy()
+                }
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    if (isConnecting) toast("Connection failed — try again")
+                    isConnecting = false
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        registerReceiver(btReceiver, IntentFilter("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED"))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
@@ -33,55 +59,68 @@ class MainActivity : AppCompatActivity() {
         loadDevices()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(btReceiver)
+        releaseProxy()
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) loadDevices()
     }
 
     private fun loadDevices() {
-        val devices = adapter?.bondedDevices?.toList() ?: emptyList()
+        val devices = btAdapter?.bondedDevices?.toList() ?: emptyList()
         val list = findViewById<RecyclerView>(R.id.deviceList)
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = DeviceAdapter(devices, ::connectDevice)
     }
 
     private fun connectDevice(device: BluetoothDevice) {
+        if (isConnecting) return
+        isConnecting = true
         toast("Connecting to ${device.name}…")
-        adapter?.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
+
+        btAdapter?.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                a2dpProxy = proxy
                 try {
-                    // Disconnect all currently connected devices on this profile
-                    proxy.connectedDevices.forEach { connected ->
-                        proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
-                            .apply { isAccessible = true }
-                            .invoke(proxy, connected)
+                    // Skip disconnect if this device is already connected
+                    val connected = proxy.connectedDevices
+                    val alreadyConnected = connected.any { it.address == device.address }
+
+                    if (!alreadyConnected) {
+                        // Disconnect others first, then wait before connecting
+                        connected.forEach { other ->
+                            proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
+                                .apply { isAccessible = true }
+                                .invoke(proxy, other)
+                        }
+                        // Wait for disconnect to settle before connecting
+                        Thread.sleep(if (connected.isNotEmpty()) 1000L else 0L)
                     }
-                    // Connect selected device
+
                     proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
                         .apply { isAccessible = true }
                         .invoke(proxy, device)
-                    toast("Connected: ${device.name}")
+
+                    // Proxy kept alive — released only after connection confirmed via BroadcastReceiver
                 } catch (e: Exception) {
                     toast("Error: ${e.message}")
-                } finally {
-                    adapter.closeProfileProxy(profile, proxy)
+                    isConnecting = false
+                    releaseProxy()
                 }
             }
-            override fun onServiceDisconnected(profile: Int) {}
-        }, BluetoothProfile.A2DP)
-
-        // Also connect HID profile (remotes/keyboards)
-        adapter?.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
-            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                try {
-                    proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
-                        .apply { isAccessible = true }
-                        .invoke(proxy, device)
-                } catch (_: Exception) {}
-                finally { adapter.closeProfileProxy(profile, proxy) }
+            override fun onServiceDisconnected(profile: Int) {
+                a2dpProxy = null
             }
-            override fun onServiceDisconnected(profile: Int) {}
-        }, BluetoothProfile.HID_DEVICE)
+        }, BluetoothProfile.A2DP)
+    }
+
+    private fun releaseProxy() {
+        a2dpProxy?.let { btAdapter?.closeProfileProxy(BluetoothProfile.A2DP, it) }
+        a2dpProxy = null
     }
 
     private fun toast(msg: String) = runOnUiThread {
