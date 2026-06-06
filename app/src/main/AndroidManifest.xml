@@ -16,6 +16,7 @@
         android:label="BT Manager"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:banner="@drawable/banner"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <!-- Blue background -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M0,0h320v180h-320z"/>
+    <!-- Bluetooth symbol centered -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M160,50 L160,130 M160,50 L185,72 L148,90 L185,108 L160,130 M160,50 L135,72 M160,130 L135,108"/>
+</vector>
