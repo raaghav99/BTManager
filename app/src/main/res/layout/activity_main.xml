@@ -19,6 +19,25 @@
             android:textStyle="bold"
             android:layout_marginBottom="32dp"/>
 
+        <!-- Connected Devices -->
+        <TextView
+            android:id="@+id/connectedHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONNECTED"
+            android:textSize="14sp"
+            android:textColor="#00cc66"
+            android:letterSpacing="0.15"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/connectedList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:layout_marginBottom="32dp"/>
+
         <!-- Paired Devices -->
         <TextView
             android:layout_width="wrap_content"
