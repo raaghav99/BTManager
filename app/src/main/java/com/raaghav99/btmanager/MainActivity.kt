@@ -11,9 +11,12 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,20 +28,81 @@ class MainActivity : AppCompatActivity() {
     private val btAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private var a2dpProxy: BluetoothProfile? = null
     private var isConnecting = false
+    private val discoveredDevices = mutableListOf<BluetoothDevice>()
+    private var discoveredAdapter: DeviceAdapter? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     private val btReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
-            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-            when (state) {
-                BluetoothProfile.STATE_CONNECTED -> {
-                    toast("Connected: ${device?.name}")
-                    isConnecting = false
-                    releaseProxy()
+            when (intent.action) {
+
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                    toast("Scanning for devices…")
+                    discoveredDevices.clear()
+                    discoveredAdapter?.notifyDataSetChanged()
                 }
-                BluetoothProfile.STATE_DISCONNECTED -> {
-                    if (isConnecting) toast("Connection failed — try again")
-                    isConnecting = false
+
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    else
+                        @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    device?.let {
+                        if (it.name != null && !discoveredDevices.any { d -> d.address == it.address }) {
+                            discoveredDevices.add(it)
+                            discoveredAdapter?.notifyItemInserted(discoveredDevices.size - 1)
+                        }
+                    }
+                }
+
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    toast("Scan done — ${discoveredDevices.size} device(s) found")
+                    findViewById<Button>(R.id.scanBtn).text = "Scan for New Devices"
+                }
+
+                BluetoothDevice.ACTION_PAIRING_REQUEST -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    else
+                        @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    val variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1)
+                    device?.let { autoConfirmPairing(it, variant) }
+                    abortBroadcast()
+                }
+
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    else
+                        @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    val newState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
+                    when (newState) {
+                        BluetoothDevice.BOND_BONDED -> {
+                            toast("Paired: ${device?.name} — now connecting…")
+                            device?.let { connectDevice(it) }
+                            loadBondedDevices()
+                        }
+                        BluetoothDevice.BOND_NONE -> toast("Pairing failed: ${device?.name}")
+                    }
+                }
+
+                "android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED" -> {
+                    val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    else
+                        @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    when (state) {
+                        BluetoothProfile.STATE_CONNECTED -> {
+                            toast("Connected: ${device?.name}")
+                            isConnecting = false
+                            releaseProxy()
+                        }
+                        BluetoothProfile.STATE_DISCONNECTED -> {
+                            if (isConnecting) toast("Connection failed — retry")
+                            isConnecting = false
+                        }
+                    }
                 }
             }
         }
@@ -48,33 +112,74 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        registerReceiver(btReceiver, IntentFilter("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED"))
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 1)
-            return
+        val filter = IntentFilter().apply {
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+            priority = IntentFilter.SYSTEM_HIGH_PRIORITY
+            addAction("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED")
         }
-        loadDevices()
+        registerReceiver(btReceiver, filter)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val perms = arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN
+            )
+            val missing = perms.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+            if (missing.isNotEmpty()) {
+                requestPermissions(missing.toTypedArray(), 1)
+                return
+            }
+        }
+
+        setup()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        btAdapter?.cancelDiscovery()
         unregisterReceiver(btReceiver)
         releaseProxy()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) loadDevices()
+        if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) setup()
+        else toast("Bluetooth permission required")
     }
 
-    private fun loadDevices() {
+    private fun setup() {
+        loadBondedDevices()
+
+        val scanBtn = findViewById<Button>(R.id.scanBtn)
+        scanBtn.setOnClickListener {
+            if (btAdapter?.isDiscovering == true) {
+                btAdapter.cancelDiscovery()
+                scanBtn.text = "Scan for New Devices"
+            } else {
+                btAdapter?.startDiscovery()
+                scanBtn.text = "Stop Scan"
+            }
+        }
+
+        val discoveredList = findViewById<RecyclerView>(R.id.discoveredList)
+        discoveredList.layoutManager = LinearLayoutManager(this)
+        discoveredAdapter = DeviceAdapter(discoveredDevices, "Pair") { device ->
+            btAdapter?.cancelDiscovery()
+            toast("Pairing with ${device.name}…")
+            device.createBond()
+        }
+        discoveredList.adapter = discoveredAdapter
+    }
+
+    private fun loadBondedDevices() {
         val devices = btAdapter?.bondedDevices?.toList() ?: emptyList()
-        val list = findViewById<RecyclerView>(R.id.deviceList)
+        val list = findViewById<RecyclerView>(R.id.bondedList)
         list.layoutManager = LinearLayoutManager(this)
-        list.adapter = DeviceAdapter(devices, ::connectDevice)
+        list.adapter = DeviceAdapter(devices, "Connect", ::connectDevice)
     }
 
     private fun connectDevice(device: BluetoothDevice) {
@@ -86,36 +191,52 @@ class MainActivity : AppCompatActivity() {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 a2dpProxy = proxy
                 try {
-                    // Skip disconnect if this device is already connected
                     val connected = proxy.connectedDevices
                     val alreadyConnected = connected.any { it.address == device.address }
 
                     if (!alreadyConnected) {
-                        // Disconnect others first, then wait before connecting
                         connected.forEach { other ->
                             proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
                                 .apply { isAccessible = true }
                                 .invoke(proxy, other)
                         }
-                        // Wait for disconnect to settle before connecting
                         Thread.sleep(if (connected.isNotEmpty()) 1000L else 0L)
                     }
 
                     proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
                         .apply { isAccessible = true }
                         .invoke(proxy, device)
-
-                    // Proxy kept alive — released only after connection confirmed via BroadcastReceiver
                 } catch (e: Exception) {
                     toast("Error: ${e.message}")
                     isConnecting = false
                     releaseProxy()
                 }
             }
-            override fun onServiceDisconnected(profile: Int) {
-                a2dpProxy = null
-            }
+            override fun onServiceDisconnected(profile: Int) { a2dpProxy = null }
         }, BluetoothProfile.A2DP)
+    }
+
+    private fun autoConfirmPairing(device: BluetoothDevice, variant: Int) {
+        try {
+            when (variant) {
+                // PAIRING_VARIANT_PASSKEY_CONFIRMATION (2) or PAIRING_VARIANT_CONSENT (3)
+                2, 3 -> {
+                    device.javaClass.getMethod("setPairingConfirmation", Boolean::class.java)
+                        .apply { isAccessible = true }
+                        .invoke(device, true)
+                    toast("Auto-confirmed pairing: ${device.name}")
+                }
+                // PAIRING_VARIANT_PIN (0)
+                0 -> {
+                    device.javaClass.getMethod("setPin", ByteArray::class.java)
+                        .apply { isAccessible = true }
+                        .invoke(device, "0000".toByteArray())
+                    toast("Auto-entered PIN for: ${device.name}")
+                }
+            }
+        } catch (e: Exception) {
+            toast("Auto-pair failed, confirm manually: ${e.message}")
+        }
     }
 
     private fun releaseProxy() {
@@ -130,12 +251,14 @@ class MainActivity : AppCompatActivity() {
 
 class DeviceAdapter(
     private val devices: List<BluetoothDevice>,
+    private val actionLabel: String,
     private val onClick: (BluetoothDevice) -> Unit
 ) : RecyclerView.Adapter<DeviceAdapter.VH>() {
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.deviceName)
         val address: TextView = view.findViewById(R.id.deviceAddress)
+        val action: TextView = view.findViewById(R.id.deviceAction)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -147,6 +270,7 @@ class DeviceAdapter(
         val device = devices[position]
         holder.name.text = device.name ?: "Unknown"
         holder.address.text = device.address
+        holder.action.text = actionLabel
         holder.itemView.setOnClickListener { onClick(device) }
         holder.itemView.isFocusable = true
         holder.itemView.isFocusableInTouchMode = true
