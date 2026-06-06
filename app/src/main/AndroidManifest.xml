@@ -26,7 +26,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Intercept pairing requests before system dialog -->
         <receiver
             android:name=".PairingReceiver"
             android:exported="true"
@@ -35,5 +34,18 @@
                 <action android:name="android.bluetooth.device.action.PAIRING_REQUEST"/>
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".BtPairingAccessibilityService"
+            android:exported="true"
+            android:label="BT Manager Auto-Pair"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
     </application>
 </manifest>

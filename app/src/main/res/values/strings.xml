@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BT Manager</string>
+    <string name="accessibility_desc">Auto-confirms Bluetooth pairing dialogs so you don\'t have to.</string>
 </resources>

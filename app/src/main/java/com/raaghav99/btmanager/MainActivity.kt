@@ -1,6 +1,7 @@
 package com.raaghav99.btmanager
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothProfile
@@ -13,6 +14,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -153,7 +156,20 @@ class MainActivity : AppCompatActivity() {
         else toast("Bluetooth permission required")
     }
 
+    private fun isAccessibilityEnabled(): Boolean {
+        val am = getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager
+        return am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            .any { it.resolveInfo.serviceInfo.packageName == packageName }
+    }
+
     private fun setup() {
+        if (!isAccessibilityEnabled()) {
+            toast("Enable 'BT Manager Auto-Pair' in Settings → Accessibility for auto-pairing")
+            handler.postDelayed({
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }, 2000)
+        }
+
         loadBondedDevices()
 
         val scanBtn = findViewById<Button>(R.id.scanBtn)
